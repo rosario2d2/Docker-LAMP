@@ -1,0 +1,5 @@
+.env
+apache/logs/*
+mysql/logs/*
+mysql/dbdata/*
+www/*

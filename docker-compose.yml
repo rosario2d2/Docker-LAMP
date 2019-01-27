@@ -1,0 +1,92 @@
+version: '3.7'
+
+services:
+    apache:
+        image: ${COMPOSE_PROJECT_NAME}_apache_img:2.4.37
+        container_name: ${COMPOSE_PROJECT_NAME}_apache_con
+        build:
+            context: ./apache
+            args:
+                - TIMEZONE=${TIMEZONE}
+                - LANGUAGE=${LANGUAGE}
+                - LOCALE=${LOCALE}
+        ports:
+            - 80:80
+        networks:
+            - frontend
+            - backend
+        volumes:
+            - ./www:/usr/local/apache2/htdocs
+            - ./apache/vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf
+            - ./apache/apache2.conf:/usr/local/apache2/conf/httpd.conf
+            - ./apache/logs:/usr/local/apache2/logs
+    php:
+        image: ${COMPOSE_PROJECT_NAME}_php_img:7.2.11-fpm
+        container_name: ${COMPOSE_PROJECT_NAME}_php_con
+        build:
+            context: ./php
+            args:
+                - TIMEZONE=${TIMEZONE}
+                - LANGUAGE=${LANGUAGE}
+                - LOCALE=${LOCALE}
+        networks:
+            - backend
+        volumes:
+            - ./www:/var/www/html
+            - ./php/php.ini:/usr/local/etc/php/conf.d/php.ini
+        depends_on:
+            - apache
+    mysql:
+        image: ${COMPOSE_PROJECT_NAME}_mysql_img:5.6.34
+        container_name: ${COMPOSE_PROJECT_NAME}_mysql_con
+        build:
+            context: ./mysql
+            args:
+                - PRIVILEGED_USER=${MYSQL_USER}
+                - TIMEZONE=${TIMEZONE}
+                - LANGUAGE=${LANGUAGE}
+                - LOCALE=${LOCALE}
+        restart: always
+        ports:
+            - 3306:3306
+        networks:
+            - backend
+        volumes:
+            - ./mysql/dbdata:/var/lib/mysql
+            - ./mysql/logs:/var/log/mysql
+            - ./mysql/mysql.cnf:/etc/mysql/conf.d/mysql.cnf
+        environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            MYSQL_USER: ${MYSQL_USER}
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+            TZ: ${TIMEZONE}
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin
+        container_name: ${COMPOSE_PROJECT_NAME}_phpmyadmin_con
+        environment:
+            PMA_HOST: mysql
+            PMA_PORT: 3306
+        restart: always
+        ports:
+            - 8080:80
+        networks:
+            - frontend
+            - backend
+        volumes:
+            - phpmyadmin_sessions:/sessions
+            - ./mysql/phpmyadmin.config.php:/etc/phpmyadmin/config.user.inc.php
+        depends_on:
+            - mysql
+    mailhog:
+        image: mailhog/mailhog
+        container_name: ${COMPOSE_PROJECT_NAME}_mailhog_con
+        ports:
+            - 1025:1025
+            - 8025:8025
+        networks:
+            - backend
+networks:
+  frontend:
+  backend:
+volumes:
+    phpmyadmin_sessions:
